@@ -1,0 +1,16 @@
+[package]
+name = "rerf-cubes"
+version = "0.1.0"
+edition = "2024"
+description = "Create one or more cubes with an optional tube in the center"
+
+[dependencies]
+clap = { version = "4.5.32", features = ["derive"] }
+nalgebra = "0.33.2"
+
+[dependencies.csgrs]
+version = "0.16.0"
+default-features = false
+# ATM f32 doesn't compile
+#features = ["f32", "stl-io", "dxf-io", "truetype-text", "hershey-text", "chull-io", "image-io", "metaballs", "hashmap", "sdf", "offset"]
+features = ["f64", "stl-io", "dxf-io", "truetype-text", "hershey-text", "chull-io", "image-io", "metaballs", "hashmap", "sdf", "offset"]
