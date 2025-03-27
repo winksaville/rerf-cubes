@@ -1,5 +1,5 @@
-use clap::{value_parser, Parser};
-use csgrs::csg::CSG;
+use clap::{Parser, value_parser};
+use csgrs::{csg::CSG, polygon::Polygon};
 
 // Define the command line arguments
 #[derive(Parser, Debug)]
@@ -7,13 +7,28 @@ use csgrs::csg::CSG;
 struct Args {
     len_side: f64,
 
-    #[arg(short, long, default_value = "1", help = "The number of cubes to create")]
+    #[arg(
+        short,
+        long,
+        default_value = "1",
+        help = "The number of cubes to create"
+    )]
     cube_count: usize,
 
-    #[arg(short, long, default_value = "0.0", help = "The minimum diameter of the tube in mm, 0 for no tube")]
+    #[arg(
+        short,
+        long,
+        default_value = "0.0",
+        help = "The minimum diameter of the tube in mm, 0 for no tube"
+    )]
     min_tube_diameter: f64,
 
-    #[arg(short, long, default_value = "0.0", help = "The number mm's to increase the tube diameter by when there are multiple cubes")]
+    #[arg(
+        short,
+        long,
+        default_value = "0.0",
+        help = "The number mm's to increase the tube diameter by when there are multiple cubes"
+    )]
     tube_diameter_step: f64,
 
     #[arg(short, long, default_value = "50", value_parser = value_parser!(u32).range(3..), help = "The number of segments to use when creating the tube, minimum is 3")]
@@ -21,7 +36,7 @@ struct Args {
 }
 
 fn create_text(text: &str, font_data: &[u8], len_side: f64) -> CSG<()> {
-    let csg_text: CSG<()> = CSG::text(&text, font_data, 4.5, None);
+    let csg_text: CSG<()> = CSG::text(text, font_data, 4.5, None);
     let csg_text_bb = csg_text.bounding_box();
     //println!("cgs_text_bb: {:?}", csg_text_bb);
     let csg_text_extents = csg_text_bb.extents();
@@ -41,13 +56,26 @@ fn create_text(text: &str, font_data: &[u8], len_side: f64) -> CSG<()> {
     let half_extents_y = csg_text_extents.y / 2.0;
     let half_extents_x = csg_text_extents.x / 2.0;
     let text_sink_depth = text_extrude * 0.10;
-    let text_3d = text_3d.translate(
+    text_3d.translate(
         half_len_side - half_extents_x,
         -text_sink_depth,
         half_len_side - half_extents_y,
-    );
+    )
+}
 
-    text_3d
+fn print_polygons(polygons: &[Polygon<()>]) {
+    //println!("polygon: {:?}", polygon);
+    for (idx, polygon) in (polygons.iter()).enumerate() {
+        println!("polygon {idx}:");
+        println!(" vertices count: {}", polygon.vertices.len());
+        //println!(" vertices: {:?}", polygon.vertices);
+        for (idx, vertex) in (polygon.vertices.iter()).enumerate() {
+            println!("  vertex {idx}:");
+            println!("     pos: {:?}", vertex.pos);
+            println!("     normal: {:?}", vertex.normal);
+        }
+        println!(" plane: {:?}", polygon.plane);
+    }
 }
 
 /// Create a cube with an optional tube in the center.
@@ -65,6 +93,13 @@ fn create_cube(len_side: f64, tube_diameter: f64, segments: u32) -> CSG<()> {
 
     // Create the cube
     let mut cube = CSG::cube(len_side, len_side, len_side, None);
+    //let geometry = &cube.geometry;
+    //println!("geometry: {:?}", geometry);
+    //let polygons = &cube.to_polygons();
+    //println!("to_polygons: {:?}", polygons);
+    //let polygons = &cube.polygons;
+    //println!("polygons: {:?}", polygons);
+    print_polygons(&cube.polygons);
 
     // Create the tube and translate it to the center of the cube
     if tube_diameter > 0.0 {
@@ -90,14 +125,17 @@ fn create_cube(len_side: f64, tube_diameter: f64, segments: u32) -> CSG<()> {
 fn main() {
     let args = Args::parse();
 
+    let a = -0.0_f64;
+    let b = 0.0_f64;
+    println!("{}", a == b); // prints `true`
+
     for cube_idx in 0..args.cube_count {
-        let tube_diameter =
-            args.min_tube_diameter + (cube_idx as f64 * args.tube_diameter_step);
+        let tube_diameter = args.min_tube_diameter + (cube_idx as f64 * args.tube_diameter_step);
         let cube_with_tube = create_cube(args.len_side, tube_diameter, args.segments);
 
-        if !cube_with_tube.is_manifold() {
-            println!("The cube_idx {cube_idx} is not a manifold");
-        }
+        //if !cube_with_tube.is_manifold() {
+        //    println!("The cube_idx {cube_idx} is not a manifold");
+        //}
 
         let cube_idx_str = if args.cube_count > 1 {
             format!("-{}", cube_idx)

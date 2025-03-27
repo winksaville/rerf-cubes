@@ -410,9 +410,7 @@ checksum = "43da5946c66ffcc7745f48db692ffbb10a83bfe0afd96235c5c2a4fb23994929"
 
 [[package]]
 name = "csgrs"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adc48db5a3542243eef9f444cc2fb1b70474fa3975c3ac93f86f81d0dd3b9109"
+version = "0.17.0"
 dependencies = [
  "chull",
  "contour_tracing",
