@@ -82,7 +82,6 @@ impl TextStyle {
 /// * `text_extrusion_height` - Height to extrude text above the surface.
 /// * `text_sink_depth` - Depth to sink the base of the text into the surface.
 /// * `up_normal` - Direction considered 'up' for orienting the text; must be perpendicular to `face_normal`.
-#[allow(dead_code)]
 fn create_text_on_surface(
     text: &str,
     position: Point3<f64>,
@@ -151,7 +150,6 @@ fn create_text_on_surface(
 /// * `text_extrusion_height` - Height to extrude text above the surface.
 /// * `text_sink_depth` - Depth to sink the base of the text into the surface.
 /// * `up_normal` - Direction considered 'up' for orienting the text; must be perpendicular to `face_normal`.
-#[allow(dead_code)]
 fn create_text_on_polygon(
     shape: &CSG<()>,
     polygon_index: usize,
@@ -188,7 +186,6 @@ fn create_text_on_polygon(
     obj
 }
 
-#[allow(dead_code)]
 fn label_cube(cube: &CSG<()>, tube_diameter: f64, rerf_index: u32) -> CSG<()> {
     eprintln!("label_cube:+ tube_diameter: {:?} rerf_index: {:?}", tube_diameter, rerf_index);
     let font_data = include_bytes!("../fonts/courier-prime-sans/courier-prime-sans.ttf").to_vec();
@@ -218,10 +215,11 @@ fn label_cube(cube: &CSG<()>, tube_diameter: f64, rerf_index: u32) -> CSG<()> {
     } else {
         panic!("Failed to create tube_diameter_text on polygon")
     };
+    write_stl(&labeled_cube, &format!("labeled_cube_diameter"));
 
     let rerf_index_text = format!("{}", rerf_index);
     let rerf_polygon_index = 4;
-    let result = if let Some(text_3d) = create_text_on_polygon(
+    let labeled_cube_both = if let Some(text_3d) = create_text_on_polygon(
         &labeled_cube,
         rerf_polygon_index,
         &rerf_index_text,
@@ -231,38 +229,10 @@ fn label_cube(cube: &CSG<()>, tube_diameter: f64, rerf_index: u32) -> CSG<()> {
     } else {
         panic!("Failed to create rerf_index on polygon")
     };
+    write_stl(&labeled_cube_both, &format!("labeled_cube_both"));
 
     eprintln!("label_cube:- tube_diameter: {:?} rerf_index: {:?}", tube_diameter, rerf_index);
-    result
-}
-
-#[allow(dead_code)]
-fn create_text(text: &str, font_data: &[u8], len_side: f64) -> CSG<()> {
-    let csg_text: CSG<()> = CSG::text(text, font_data, 4.5, None);
-    let csg_text_bb = csg_text.bounding_box();
-    //println!("cgs_text_bb: {:?}", csg_text_bb);
-    let csg_text_extents = csg_text_bb.extents();
-    //println!("cgs_text_extents: {:?}", csg_text_extents);
-
-    let text_extrude = 0.1;
-    let text_3d = csg_text.extrude(text_extrude);
-
-    // Rotate the text to be on the xz plane
-    let text_3d = text_3d.rotate(90.0, 0.0, 0.0);
-
-    // Position the text in the center of face on xz plane
-    // and sink 10% of the extrude depth into the cube to
-    // be sure there are no holes in the print caused by
-    // the text not being exactly on the surface.
-    let half_len_side = len_side / 2.0;
-    let half_extents_y = csg_text_extents.y / 2.0;
-    let half_extents_x = csg_text_extents.x / 2.0;
-    let text_sink_depth = text_extrude * 0.10;
-    text_3d.translate(
-        half_len_side - half_extents_x,
-        -text_sink_depth,
-        half_len_side - half_extents_y,
-    )
+    labeled_cube_both
 }
 
 fn print_polygons(polygons: &[Polygon<()>]) {
