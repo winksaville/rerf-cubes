@@ -36,14 +36,12 @@ struct Args {
     segments: u32,
 }
 
-// Consider passing these as a struct
-// struct TextInfo {
-//    font_data: &[u8],
-//    size: f64,
-//    text_height: f64,
-//    text_sink_depth: f64,
-//    up_normal: Vector3<f64>,
-// }
+/// Write the CSG object to an STL file.
+fn write_stl(obj: &CSG<()>, base_name: &str) {
+    let stl = obj.to_stl_ascii(base_name);
+    std::fs::write(base_name.to_owned() + ".stl", stl).unwrap();
+}
+
 
 /// Text Style for 3D text
 #[derive(Debug, Clone)]
@@ -91,36 +89,53 @@ fn create_text_on_surface(
     face_normal: Vector3<f64>,
     text_style: &TextStyle,
 ) -> CSG<()> {
+    eprintln!("create_text_on_surface:+ text {:?} position: {:?} face_normal: {:?}", text, position, face_normal);
     let csg_text: CSG<()> = CSG::text(text, &text_style.font_data, text_style.font_height, None);
     let csg_text_bb = csg_text.bounding_box();
     let csg_text_extents = csg_text_bb.extents();
+    write_stl(&csg_text, &format!("{text}_1"));
 
+    eprintln!("extrude: before {:?}", text_style.text_extrusion_height);
     let text_3d = csg_text.extrude(text_style.text_extrusion_height + text_style.text_sink_depth);
+    eprintln!("extrude: done {:?}", text_style.text_extrusion_height);
+    write_stl(&text_3d, &format!("{text}_2_after_extrude"));
 
     // Step 1: Translate in local (XY) space to center and sink
     let center_offset = Vector3::new(
-        -csg_text_extents.x / 2.0,
+        csg_text_extents.x / 2.0,
         -text_style.text_sink_depth,
-        -csg_text_extents.y / 2.0,
+        csg_text_extents.y / 2.0,
     );
+    eprintln!("translate: before center_offset {:?}", center_offset);
     let text_3d = text_3d.translate(center_offset.x, center_offset.y, center_offset.z);
+    eprintln!("translate: done center_offset {:?}", center_offset);
+    write_stl(&text_3d, &format!("{text}_3_after_translate"));
 
     // Step 2: Build orientation from normal + up
     let z_axis = face_normal.normalize();
     let x_axis = text_style.up_normal.cross(&z_axis).normalize();
     let y_axis = z_axis.cross(&x_axis);
+    eprintln!("Rotation::from_matix : before x: {:?} y: {:?} z: {:?}", x_axis, y_axis, z_axis);
     let rotation = Rotation3::from_matrix_unchecked(nalgebra::Matrix3::from_columns(&[
         x_axis, y_axis, z_axis,
     ]));
+    eprintln!("Rotation::from_matix : done rotation: {rotation:?}");
     let rotation_matrix = Matrix4::from(rotation.to_homogeneous());
+    eprintln!("rotation_matrix: before transform {:?}", rotation_matrix);
     let text_3d = text_3d.transform(&rotation_matrix);
+    eprintln!("rotation_matrix: done transform {:?}", rotation_matrix);
+    write_stl(&text_3d, &format!("{text}_4_after_rotation_matrix"));
 
     // Step 3: Translate to final position
+    eprintln!("translate: before position {:?}", position);
     let text_3d = text_3d.translate(position.x, position.y, position.z);
+    eprintln!("translate: done position {:?}", position);
     let text_3d_bb = text_3d.bounding_box();
     eprintln!("text_3d_bb:         {:?}", text_3d_bb);
     eprintln!("text_3d_bb.extents: {:?}", text_3d_bb.extents());
+    write_stl(&text_3d, &format!("{text}_5_done_position"));
 
+    eprintln!("create_text_on_surface:- text {:?} position: {:?} face_normal: {:?}", text, position, face_normal);
     text_3d
 }
 
@@ -143,6 +158,7 @@ fn create_text_on_polygon(
     text: &str,
     text_style: &TextStyle,
 ) -> Option<CSG<()>> {
+    eprintln!("create_text_on_polygon:+ text {:?} polygon_index: {:?} shape.polygons.len: {}", text, polygon_index, shape.polygons.len());
     use nalgebra::{Point3, Vector3};
 
     let polygon = shape.polygons.get(polygon_index)?;
@@ -150,6 +166,7 @@ fn create_text_on_polygon(
     eprintln!("face_normal: {:?}", face_normal);
 
     // Compute center of the polygon
+    eprintln!("polygon.vertices.len(): {:?}", polygon.vertices.len());
     let mut center = Vector3::zeros();
     for v in &polygon.vertices {
         eprintln!("v.pos.coords: {:?}", v.pos.coords);
@@ -160,16 +177,20 @@ fn create_text_on_polygon(
     let position = Point3::from(center);
     eprintln!("position: {:?}", position);
 
-    Some(create_text_on_surface(
+    let obj = Some(create_text_on_surface(
         text,
         position,
         face_normal,
         text_style,
-    ))
+    ));
+    eprintln!("create_text_on_polygon:- text {:?} polygon_index: {:?}", text, polygon_index);
+
+    obj
 }
 
 #[allow(dead_code)]
 fn label_cube(cube: &CSG<()>, tube_diameter: f64, rerf_index: u32) -> CSG<()> {
+    eprintln!("label_cube:+ tube_diameter: {:?} rerf_index: {:?}", tube_diameter, rerf_index);
     let font_data = include_bytes!("../fonts/courier-prime-sans/courier-prime-sans.ttf").to_vec();
     let font_height = 4.5;
     let text_extrusion_height = 0.2;
@@ -184,8 +205,8 @@ fn label_cube(cube: &CSG<()>, tube_diameter: f64, rerf_index: u32) -> CSG<()> {
         text_up_direction,
     );
 
-    let tube_diameter_text = format!("{:3}", (tube_diameter * 1000.0) as usize);
-    let tube_diameter_polygon_index = 2; //cube.polygons.get(2).unwrap();
+    let tube_diameter_text = format!("{:03}", (tube_diameter * 1000.0) as usize);
+    let tube_diameter_polygon_index = 2;
 
     let labeled_cube = if let Some(text_3d) = create_text_on_polygon(
         cube,
@@ -199,19 +220,23 @@ fn label_cube(cube: &CSG<()>, tube_diameter: f64, rerf_index: u32) -> CSG<()> {
     };
 
     let rerf_index_text = format!("{}", rerf_index);
-    let rerf_polygon_index = 4; //cube.polygons.get(4).unwrap();
-    if let Some(text_3d) = create_text_on_polygon(
+    let rerf_polygon_index = 4;
+    let result = if let Some(text_3d) = create_text_on_polygon(
         &labeled_cube,
         rerf_polygon_index,
         &rerf_index_text,
         &text_style,
     ) {
-        cube.union(&text_3d)
+        labeled_cube.union(&text_3d)
     } else {
         panic!("Failed to create rerf_index on polygon")
-    }
+    };
+
+    eprintln!("label_cube:- tube_diameter: {:?} rerf_index: {:?}", tube_diameter, rerf_index);
+    result
 }
 
+#[allow(dead_code)]
 fn create_text(text: &str, font_data: &[u8], len_side: f64) -> CSG<()> {
     let csg_text: CSG<()> = CSG::text(text, font_data, 4.5, None);
     let csg_text_bb = csg_text.bounding_box();
@@ -278,6 +303,18 @@ fn create_cube(len_side: f64, tube_diameter: f64, segments: u32) -> CSG<()> {
     //println!("polygons: {:?}", polygons);
     print_polygons(&cube.polygons);
 
+    // TODO: we must label the cube before we create the tube
+    // because doing it after words instead of the cube.polygons
+    // having 6 polygons, it has 184 so computing the center in
+    // label_cube is wrong and the code panics because the we have NaN's:
+    //    Rotation::from_matix : before x: [[NaN, NaN, NaN]] y: [[NaN, NaN, NaN]] z: [[-0.0, -0.0, -1.0]]
+    //    Rotation::from_matix : done rotation: [[NaN, NaN, NaN], [NaN, NaN, NaN], [-0.0, -0.0, -1.0]]
+    //    rotation_matrix: before transform [[NaN, NaN, NaN, 0.0], [NaN, NaN, NaN, 0.0], [-0.0, -0.0, -1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+    //    rotation_matrix: done transform [[NaN, NaN, NaN, 0.0], [NaN, NaN, NaN, 0.0], [-0.0, -0.0, -1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+    //    thread 'main' panicked at /home/wink/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/earcutr-0.4.3/src/lib.rs:395:44:
+    cube = label_cube(&cube, tube_diameter, 1);
+    write_stl(&cube, "cube_labeled_no_tube");
+
     // Create the tube and translate it to the center of the cube
     if tube_diameter > 0.0 {
         // Create the tube and remove the material it's from the cube
@@ -286,13 +323,13 @@ fn create_cube(len_side: f64, tube_diameter: f64, segments: u32) -> CSG<()> {
         let tube = tube.translate(len_side / 2.0, len_side / 2.0, 0.0);
         cube = cube.difference(&tube);
 
-        // Create the text for the tube diameter
-        let font_data = include_bytes!("../fonts/courier-prime-sans/courier-prime-sans.ttf");
-        let text = format!("{:3}", (tube_diameter * 1000.0) as usize);
-        let text_3d = create_text(&text, font_data, len_side);
+        //// Create the text for the tube diameter
+        //let font_data = include_bytes!("../fonts/courier-prime-sans/courier-prime-sans.ttf");
+        //let text = format!("{:3}", (tube_diameter * 1000.0) as usize);
+        //let text_3d = create_text(&text, font_data, len_side);
 
         // Union the cube with the text
-        cube = cube.union(&text_3d);
+        //cube = cube.union(&text_3d);
     }
 
     // Return the finished cube
@@ -329,7 +366,6 @@ fn main() {
         } else {
             format!("cube{}.len_side-{:0.3}", cube_idx_str, args.len_side)
         };
-        let stl = cube_with_tube.to_stl_ascii(&name);
-        std::fs::write(name.to_owned() + ".stl", stl).unwrap();
+        write_stl(&cube_with_tube, &name);
     }
 }
