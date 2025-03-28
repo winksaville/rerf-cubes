@@ -82,6 +82,8 @@ impl TextStyle {
 /// * `text_extrusion_height` - Height to extrude text above the surface.
 /// * `text_sink_depth` - Depth to sink the base of the text into the surface.
 /// * `up_normal` - Direction considered 'up' for orienting the text; must be perpendicular to `face_normal`.
+//use csgrs::prelude::*;
+//use nalgebra::{Point3, Vector3, Matrix4, Rotation3, Isometry3};
 fn create_text_on_surface(
     text: &str,
     position: Point3<f64>,
@@ -99,11 +101,11 @@ fn create_text_on_surface(
     eprintln!("extrude: done {:?}", text_style.text_extrusion_height);
     write_stl(&text_3d, &format!("{text}_2_after_extrude"));
 
-    // Step 1: Translate in local (XY) space to center and sink
+    // Step 1: Center the text on its local bounding box
     let center_offset = Vector3::new(
-        csg_text_extents.x / 2.0,
+        -csg_text_extents.x / 2.0,
         -text_style.text_sink_depth,
-        csg_text_extents.y / 2.0,
+        -csg_text_extents.y / 2.0,
     );
     eprintln!("translate: before center_offset {:?}", center_offset);
     let text_3d = text_3d.translate(center_offset.x, center_offset.y, center_offset.z);
@@ -112,13 +114,21 @@ fn create_text_on_surface(
 
     // Step 2: Build orientation from normal + up
     let z_axis = face_normal.normalize();
-    let x_axis = text_style.up_normal.cross(&z_axis).normalize();
-    let y_axis = z_axis.cross(&x_axis);
-    eprintln!("Rotation::from_matix : before x: {:?} y: {:?} z: {:?}", x_axis, y_axis, z_axis);
+
+    // Check for near-parallel situation and handle gracefully
+    let x_axis = if text_style.up_normal.cross(&z_axis).magnitude().abs() < 1e-6 {
+        Vector3::x() // Fallback to a default axis if up and normal are parallel
+    } else {
+        text_style.up_normal.cross(&z_axis).normalize()
+    };
+    
+    let y_axis = z_axis.cross(&x_axis).normalize();
+
+    eprintln!("Rotation::from_matrix: before x: {:?} y: {:?} z: {:?}", x_axis, y_axis, z_axis);
     let rotation = Rotation3::from_matrix_unchecked(nalgebra::Matrix3::from_columns(&[
         x_axis, y_axis, z_axis,
     ]));
-    eprintln!("Rotation::from_matix : done rotation: {rotation:?}");
+    eprintln!("Rotation::from_matrix: done rotation: {rotation:?}");
     let rotation_matrix = Matrix4::from(rotation.to_homogeneous());
     eprintln!("rotation_matrix: before transform {:?}", rotation_matrix);
     let text_3d = text_3d.transform(&rotation_matrix);
