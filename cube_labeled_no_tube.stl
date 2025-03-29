@@ -1,0 +1,72 @@
+solid cube_labeled_no_tube
+  facet normal 0.000000 0.000000 -1.000000
+    outer loop
+      vertex 2.397000 0.000000 0.000000
+      vertex 0.000000 0.000000 0.000000
+      vertex 0.000000 2.397000 0.000000
+    endloop
+  endfacet
+  facet normal 0.000000 0.000000 -1.000000
+    outer loop
+      vertex 0.000000 2.397000 0.000000
+      vertex 2.397000 2.397000 0.000000
+      vertex 2.397000 0.000000 0.000000
+    endloop
+  endfacet
+  facet normal 0.000000 0.000000 1.000000
+    outer loop
+      vertex 0.000000 2.397000 2.397000
+      vertex 0.000000 0.000000 2.397000
+      vertex 2.397000 0.000000 2.397000
+    endloop
+  endfacet
+  facet normal 0.000000 0.000000 1.000000
+    outer loop
+      vertex 2.397000 0.000000 2.397000
+      vertex 2.397000 2.397000 2.397000
+      vertex 0.000000 2.397000 2.397000
+    endloop
+  endfacet
+  facet normal 0.000000 1.000000 0.000000
+    outer loop
+      vertex 2.397000 2.397000 0.000000
+      vertex 0.000000 2.397000 0.000000
+      vertex 0.000000 2.397000 2.397000
+    endloop
+  endfacet
+  facet normal 0.000000 1.000000 0.000000
+    outer loop
+      vertex 0.000000 2.397000 2.397000
+      vertex 2.397000 2.397000 2.397000
+      vertex 2.397000 2.397000 0.000000
+    endloop
+  endfacet
+  facet normal -1.000000 0.000000 0.000000
+    outer loop
+      vertex 0.000000 2.397000 0.000000
+      vertex 0.000000 0.000000 0.000000
+      vertex 0.000000 0.000000 2.397000
+    endloop
+  endfacet
+  facet normal -1.000000 0.000000 0.000000
+    outer loop
+      vertex 0.000000 0.000000 2.397000
+      vertex 0.000000 2.397000 2.397000
+      vertex 0.000000 2.397000 0.000000
+    endloop
+  endfacet
+  facet normal 1.000000 0.000000 0.000000
+    outer loop
+      vertex 2.397000 0.000000 2.397000
+      vertex 2.397000 0.000000 0.000000
+      vertex 2.397000 2.397000 0.000000
+    endloop
+  endfacet
+  facet normal 1.000000 0.000000 0.000000
+    outer loop
+      vertex 2.397000 2.397000 0.000000
+      vertex 2.397000 2.397000 2.397000
+      vertex 2.397000 0.000000 2.397000
+    endloop
+  endfacet
+endsolid cube_labeled_no_tube

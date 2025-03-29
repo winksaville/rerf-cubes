@@ -92,36 +92,35 @@ fn create_text_on_surface(
     let csg_text: CSG<()> = CSG::text(text, &text_style.font_data, text_style.font_height, None);
     let csg_text_bb = csg_text.bounding_box();
     let csg_text_extents = csg_text_bb.extents();
-    write_stl(&csg_text, &format!("{text}_1"));
-
-    eprintln!("extrude: before {:?}", text_style.text_extrusion_height);
-    let text_3d = csg_text.extrude(text_style.text_extrusion_height + text_style.text_sink_depth);
-    eprintln!("extrude: done {:?}", text_style.text_extrusion_height);
-    write_stl(&text_3d, &format!("{text}_2_after_extrude"));
+    write_stl(&csg_text, &format!("{text}_1_original"));
 
     // Step 1: Center the text on its local bounding box
     let center_offset = Vector3::new(
         -csg_text_extents.x / 2.0,
-        -text_style.text_sink_depth,
+        0.0,
         -csg_text_extents.y / 2.0,
     );
     eprintln!("translate: before center_offset {:?}", center_offset);
-    let text_3d = text_3d.translate(center_offset.x, center_offset.y, center_offset.z);
+    let csg_text = csg_text.translate(center_offset.x, center_offset.y, center_offset.z);
     eprintln!("translate: done center_offset {:?}", center_offset);
-    write_stl(&text_3d, &format!("{text}_3_after_translate"));
+    write_stl(&csg_text, &format!("{text}_2_after_translate"));
 
-    // Step 2: Build orientation from normal + up
+    // Step 2: Build orientation from normal + up (Rotate BEFORE Extruding)
     let z_axis = face_normal.normalize();
-
-    // Check for near-parallel situation and handle gracefully
-    let x_axis = if text_style.up_normal.cross(&z_axis).magnitude().abs() < 1e-6 {
-        eprintln!("create_text_on_surface: up_normal and face_normal are parallel or near-parallel");
-        Vector3::x() // Fallback to a default axis if up and normal are parallel
-    } else {
-        eprintln!("create_text_on_surface: up_normal is z_axis");
-        text_style.up_normal.cross(&z_axis).normalize()
-    };
     
+    // Compute x_axis and fallback if degenerate
+    let mut x_axis = text_style.up_normal.cross(&z_axis);
+    if x_axis.norm() < 1e-4 {  // Adjusted threshold for parallel detection
+        eprintln!("create_text_on_surface: Detected near-parallel up_normal and face_normal, providing fallback x_axis");
+        x_axis = if z_axis.x.abs() > z_axis.z.abs() {
+            Vector3::new(z_axis.y, -z_axis.x, 0.0)
+        } else {
+            Vector3::new(0.0, -z_axis.z, z_axis.y)
+        };
+    }
+    x_axis = x_axis.normalize();
+
+    // Compute y_axis from x_axis and z_axis (guaranteed orthogonal)
     let y_axis = z_axis.cross(&x_axis).normalize();
 
     eprintln!("Rotation::from_matrix: before x: {:?} y: {:?} z: {:?}", x_axis, y_axis, z_axis);
@@ -131,22 +130,28 @@ fn create_text_on_surface(
     eprintln!("Rotation::from_matrix: done rotation: {rotation:?}");
     let rotation_matrix = Matrix4::from(rotation.to_homogeneous());
     eprintln!("rotation_matrix: before transform {:?}", rotation_matrix);
-    let text_3d = text_3d.transform(&rotation_matrix);
-    eprintln!("rotation_matrix: done transform {:?}", rotation_matrix);
-    write_stl(&text_3d, &format!("{text}_4_after_rotation_matrix"));
 
-    // Step 3: Translate to final position
+    // Apply rotation before extrusion
+    let csg_text = csg_text.transform(&rotation_matrix);
+    eprintln!("rotation_matrix: done transform {:?}", rotation_matrix);
+    write_stl(&csg_text, &format!("{text}_3_after_rotation"));
+
+    // Step 3: Translate to final position before extrusion
     eprintln!("translate: before position {:?}", position);
-    let text_3d = text_3d.translate(position.x, position.y, position.z);
+    let csg_text = csg_text.translate(position.x, position.y, position.z);
     eprintln!("translate: done position {:?}", position);
-    let text_3d_bb = text_3d.bounding_box();
-    eprintln!("text_3d_bb:         {:?}", text_3d_bb);
-    eprintln!("text_3d_bb.extents: {:?}", text_3d_bb.extents());
-    write_stl(&text_3d, &format!("{text}_5_done_position"));
+    write_stl(&csg_text, &format!("{text}_4_after_position"));
+
+    // Step 4: Extrude the Text **AFTER Transformations**
+    eprintln!("extrude: before {:?}", text_style.text_extrusion_height);
+    let text_3d = csg_text.extrude(text_style.text_extrusion_height + text_style.text_sink_depth);
+    eprintln!("extrude: done {:?}", text_style.text_extrusion_height);
+    write_stl(&text_3d, &format!("{text}_5_after_extrude"));
 
     eprintln!("create_text_on_surface:- text {:?} position: {:?} face_normal: {:?}", text, position, face_normal);
     text_3d
 }
+
 
 /// Create a 3D text object centered on a polygon surface.
 /// Returns `None` if the polygon index is out of bounds.
@@ -227,22 +232,23 @@ fn label_cube(cube: &CSG<()>, tube_diameter: f64, rerf_index: u32) -> CSG<()> {
     };
     write_stl(&labeled_cube, &format!("labeled_cube_diameter"));
 
-    let rerf_index_text = format!("{}", rerf_index);
-    let rerf_polygon_index = 4;
-    let labeled_cube_both = if let Some(text_3d) = create_text_on_polygon(
-        &labeled_cube,
-        rerf_polygon_index,
-        &rerf_index_text,
-        &text_style,
-    ) {
-        labeled_cube.union(&text_3d)
-    } else {
-        panic!("Failed to create rerf_index on polygon")
-    };
-    write_stl(&labeled_cube_both, &format!("labeled_cube_both"));
+    //let rerf_index_text = format!("{}", rerf_index);
+    //let rerf_polygon_index = 4;
+    //let labeled_cube_both = if let Some(text_3d) = create_text_on_polygon(
+    //    &labeled_cube,
+    //    rerf_polygon_index,
+    //    &rerf_index_text,
+    //    &text_style,
+    //) {
+    //    labeled_cube.union(&text_3d)
+    //} else {
+    //    panic!("Failed to create rerf_index on polygon")
+    //};
+    //write_stl(&labeled_cube_both, &format!("labeled_cube_both"));
 
-    eprintln!("label_cube:- tube_diameter: {:?} rerf_index: {:?}", tube_diameter, rerf_index);
-    labeled_cube_both
+    //eprintln!("label_cube:- tube_diameter: {:?} rerf_index: {:?}", tube_diameter, rerf_index);
+    //labeled_cube_both
+    labeled_cube
 }
 
 fn print_polygons(polygons: &[Polygon<()>]) {
