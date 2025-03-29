@@ -232,22 +232,6 @@ fn label_cube(cube: &CSG<()>, tube_diameter: f64, rerf_index: u32) -> CSG<()> {
     };
     write_stl(&labeled_cube, &format!("labeled_cube_diameter"));
 
-    //let rerf_index_text = format!("{}", rerf_index);
-    //let rerf_polygon_index = 4;
-    //let labeled_cube_both = if let Some(text_3d) = create_text_on_polygon(
-    //    &labeled_cube,
-    //    rerf_polygon_index,
-    //    &rerf_index_text,
-    //    &text_style,
-    //) {
-    //    labeled_cube.union(&text_3d)
-    //} else {
-    //    panic!("Failed to create rerf_index on polygon")
-    //};
-    //write_stl(&labeled_cube_both, &format!("labeled_cube_both"));
-
-    //eprintln!("label_cube:- tube_diameter: {:?} rerf_index: {:?}", tube_diameter, rerf_index);
-    //labeled_cube_both
     labeled_cube
 }
 
@@ -281,45 +265,20 @@ fn create_cube(len_side: f64, tube_diameter: f64, segments: u32) -> CSG<()> {
 
     // Create the cube
     let mut cube = CSG::cube(len_side, len_side, len_side, None);
-    //let geometry = &cube.geometry;
-    //println!("geometry: {:?}", geometry);
-    //let polygons = &cube.to_polygons();
-    //println!("to_polygons: {:?}", polygons);
-    //let polygons = &cube.polygons;
-    //println!("polygons: {:?}", polygons);
     print_polygons(&cube.polygons);
 
-    // TODO: we must label the cube before we create the tube
-    // because doing it after words instead of the cube.polygons
-    // having 6 polygons, it has 184 so computing the center in
-    // label_cube is wrong and the code panics because the we have NaN's:
-    //    Rotation::from_matix : before x: [[NaN, NaN, NaN]] y: [[NaN, NaN, NaN]] z: [[-0.0, -0.0, -1.0]]
-    //    Rotation::from_matix : done rotation: [[NaN, NaN, NaN], [NaN, NaN, NaN], [-0.0, -0.0, -1.0]]
-    //    rotation_matrix: before transform [[NaN, NaN, NaN, 0.0], [NaN, NaN, NaN, 0.0], [-0.0, -0.0, -1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
-    //    rotation_matrix: done transform [[NaN, NaN, NaN, 0.0], [NaN, NaN, NaN, 0.0], [-0.0, -0.0, -1.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
-    //    thread 'main' panicked at /home/wink/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/earcutr-0.4.3/src/lib.rs:395:44:
+    // We must label the cube before we create the tube as the tube will get more polygons
+    // which are irrelevant for the cube label.
     cube = label_cube(&cube, tube_diameter, 1);
     write_stl(&cube, "cube_labeled_no_tube");
 
     // Create the tube and translate it to the center of the cube
-    if tube_diameter > 0.0 {
-        // Create the tube and remove the material it's from the cube
-        let tube_radius = tube_diameter / 2.0;
-        let tube = CSG::cylinder(tube_radius, len_side, segments as usize, None);
-        let tube = tube.translate(len_side / 2.0, len_side / 2.0, 0.0);
-        cube = cube.difference(&tube);
+    let tube_radius = tube_diameter / 2.0;
+    let tube = CSG::cylinder(tube_radius, len_side, segments as usize, None);
+    let tube = tube.translate(len_side / 2.0, len_side / 2.0, 0.0);
 
-        //// Create the text for the tube diameter
-        //let font_data = include_bytes!("../fonts/courier-prime-sans/courier-prime-sans.ttf");
-        //let text = format!("{:3}", (tube_diameter * 1000.0) as usize);
-        //let text_3d = create_text(&text, font_data, len_side);
-
-        // Union the cube with the text
-        //cube = cube.union(&text_3d);
-    }
-
-    // Return the finished cube
-    cube
+    // Remove the tube material from the cube
+    cube.difference(&tube)
 }
 
 fn main() {
@@ -332,10 +291,6 @@ fn main() {
     for cube_idx in 0..args.cube_count {
         let tube_diameter = args.min_tube_diameter + (cube_idx as f64 * args.tube_diameter_step);
         let cube_with_tube = create_cube(args.len_side, tube_diameter, args.segments);
-
-        //if !cube_with_tube.is_manifold() {
-        //    println!("The cube_idx {cube_idx} is not a manifold");
-        //}
 
         let cube_idx_str = if args.cube_count > 1 {
             format!("-{}", cube_idx)
