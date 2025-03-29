@@ -82,8 +82,6 @@ impl TextStyle {
 /// * `text_extrusion_height` - Height to extrude text above the surface.
 /// * `text_sink_depth` - Depth to sink the base of the text into the surface.
 /// * `up_normal` - Direction considered 'up' for orienting the text; must be perpendicular to `face_normal`.
-//use csgrs::prelude::*;
-//use nalgebra::{Point3, Vector3, Matrix4, Rotation3, Isometry3};
 fn create_text_on_surface(
     text: &str,
     position: Point3<f64>,
@@ -117,8 +115,10 @@ fn create_text_on_surface(
 
     // Check for near-parallel situation and handle gracefully
     let x_axis = if text_style.up_normal.cross(&z_axis).magnitude().abs() < 1e-6 {
+        eprintln!("create_text_on_surface: up_normal and face_normal are parallel or near-parallel");
         Vector3::x() // Fallback to a default axis if up and normal are parallel
     } else {
+        eprintln!("create_text_on_surface: up_normal is z_axis");
         text_style.up_normal.cross(&z_axis).normalize()
     };
     
