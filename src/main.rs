@@ -107,33 +107,17 @@ fn create_text_on_surface(
 
     // Step 2: Build orientation from normal + up (Rotate BEFORE Extruding)
     let z_axis = face_normal.normalize();
-    
-    // Compute x_axis and fallback if degenerate
-    let mut x_axis = text_style.up_normal.cross(&z_axis);
-    if x_axis.norm() < 1e-4 {  // Adjusted threshold for parallel detection
-        eprintln!("create_text_on_surface: Detected near-parallel up_normal and face_normal, providing fallback x_axis");
-        x_axis = if z_axis.x.abs() > z_axis.z.abs() {
-            Vector3::new(z_axis.y, -z_axis.x, 0.0)
-        } else {
-            Vector3::new(0.0, -z_axis.z, z_axis.y)
-        };
-    }
-    x_axis = x_axis.normalize();
+    eprintln!("step 2 z_axis: {:?}", z_axis);
 
-    // Compute y_axis from x_axis and z_axis (guaranteed orthogonal)
-    let y_axis = z_axis.cross(&x_axis).normalize();
-
-    eprintln!("Rotation::from_matrix: before x: {:?} y: {:?} z: {:?}", x_axis, y_axis, z_axis);
-    let rotation = Rotation3::from_matrix_unchecked(nalgebra::Matrix3::from_columns(&[
-        x_axis, y_axis, z_axis,
-    ]));
-    eprintln!("Rotation::from_matrix: done rotation: {rotation:?}");
+    // Use a safe and robust rotation constructor
+    let rotation = Rotation3::face_towards(&z_axis, &text_style.up_normal);
+    eprintln!("rotation: {:?}", rotation);
     let rotation_matrix = Matrix4::from(rotation.to_homogeneous());
-    eprintln!("rotation_matrix: before transform {:?}", rotation_matrix);
+    eprintln!("rotation_matrix: {:?}", rotation_matrix);
 
     // Apply rotation before extrusion
     let csg_text = csg_text.transform(&rotation_matrix);
-    eprintln!("rotation_matrix: done transform {:?}", rotation_matrix);
+    eprintln!("rotation_matrix: done rotation transform {:?}", rotation_matrix);
     write_stl(&csg_text, &format!("{text}_3_after_rotation"));
 
     // Step 3: Translate to final position before extrusion
