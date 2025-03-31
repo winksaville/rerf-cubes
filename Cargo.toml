@@ -9,9 +9,9 @@ clap = { version = "4.5.32", features = ["derive"] }
 nalgebra = "0.33.2"
 
 [dependencies.csgrs]
-#version = "0.16.0"
+version = "0.16.0"
+#path = "../csgrs"
 default-features = false
-path = "../csgrs"
 # ATM f32 doesn't compile
-#features = ["f32", "stl-io", "dxf-io", "truetype-text", "hershey-text", "chull-io", "image-io", "metaballs", "hashmap", "sdf", "offset", "earcut"]
-features = ["f64", "stl-io", "dxf-io", "truetype-text", "hershey-text", "chull-io", "image-io", "metaballs", "hashmap", "sdf", "offset", "earcut"]
+#features = ["f32", "stl-io", "dxf-io", "truetype-text", "hershey-text", "chull-io", "image-io", "metaballs", "hashmap", "sdf", "offset"]
+features = ["f64", "stl-io", "dxf-io", "truetype-text", "hershey-text", "chull-io", "image-io", "metaballs", "hashmap", "sdf", "offset"]

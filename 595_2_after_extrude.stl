@@ -1,4 +1,4 @@
-solid 595_4_after_extrude
+solid 595_2_after_extrude
   facet normal 0.000000 0.000000 -1.000000
     outer loop
       vertex 0.658662 0.559371 0.000000
@@ -27075,4 +27075,4 @@ solid 595_4_after_extrude
       vertex 1.941742 0.299206 0.000000
     endloop
   endfacet
-endsolid 595_4_after_extrude
+endsolid 595_2_after_extrude

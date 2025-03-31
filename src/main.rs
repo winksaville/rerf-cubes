@@ -75,6 +75,7 @@ impl TextStyle {
 /// Create a 3D text object positioned and oriented on a surface.
 ///
 /// # Arguments
+/// * `shape` - The CSG shape containing the surface and used for debugging.
 /// * `text` - The text string to render.
 /// * `position` - The point on the surface where the text will be centered.
 /// * `face_normal` - Normal vector of the surface where the text will appear.
@@ -86,15 +87,22 @@ fn create_text_on_surface(
     text_style: &TextStyle,
 ) -> CSG<()> {
     eprintln!(
-        "create_text_on_surface:+ text {:?} position: {:?} face_normal: {:?}",
-        text, position, face_normal
+        "create_text_on_surface:+ text {:?} position: {:?} face_normal: {:?} fh: {:?} eh: {:?} sd: {:?}",
+        text, position, face_normal, text_style.font_height, text_style.text_extrusion_height, text_style.text_sink_depth
     );
 
-    // Step 1: Create initial flat text
+    // Step 1: Create initial 2D text
     let csg_text: CSG<()> = CSG::text(text, &text_style.font_data, text_style.font_height, None);
     write_stl(&csg_text, &format!("{}_1_original", text));
 
-    // Step 2: Rotate text to align correctly with face_normal
+    // Step 2: Extrude text
+    // It appears to rotate and translate the test
+    // you must extrude it first, otherwise rotation and translation
+    // are nops.
+    let csg_text = csg_text.extrude(text_style.text_extrusion_height + text_style.text_sink_depth);
+    write_stl(&csg_text, &format!("{}_2_after_extrude", text));
+
+    // Step 3: Rotate text to align correctly with face_normal
     // Initial text faces +Z; we must rotate from +Z to face_normal
     let rotation = if face_normal == Vector3::new(0.0, -1.0, 0.0) {
         // Rotate +90° around X to face negative Y
@@ -110,26 +118,21 @@ fn create_text_on_surface(
     } else {
         (0.0, 0.0, 0.0)
     };
+    eprintln!("rotation: {:?}", rotation);
 
     let csg_text = csg_text.rotate(rotation.0, rotation.1, rotation.2);
-    write_stl(&csg_text, &format!("{}_2_after_rotation", text));
+    write_stl(&csg_text, &format!("{}_3_after_rotation", text));
 
-    // Step 3: Translate text to final position
+    // Step 4: Translate text to final position
     let csg_text = csg_text.translate(position.x, position.y, position.z);
-    write_stl(&csg_text, &format!("{}_3_after_translate", text));
-
-    // Step 4: Extrude text
-    let text_3d = csg_text.extrude(text_style.text_extrusion_height + text_style.text_sink_depth);
-    write_stl(&text_3d, &format!("{}_4_after_extrude", text));
+    write_stl(&csg_text, &format!("{}_4_after_translate", text));
 
     eprintln!(
         "create_text_on_surface:- text {:?} position: {:?} face_normal: {:?}",
         text, position, face_normal
     );
-    text_3d
+    csg_text
 }
-
-
 
 /// Create a 3D text object centered on a polygon surface.
 /// Returns `None` if the polygon index is out of bounds.
@@ -204,7 +207,6 @@ fn label_cube(cube: &CSG<()>, tube_diameter: f64, rerf_index: u32) -> CSG<()> {
     } else {
         panic!("Failed to create tube_diameter_text on polygon")
     };
-    write_stl(&labeled_cube, &format!("labeled_cube_diameter"));
 
     eprintln!("label_cube:- tube_diameter: {:?} rerf_index: {:?}", tube_diameter, rerf_index);
     labeled_cube
