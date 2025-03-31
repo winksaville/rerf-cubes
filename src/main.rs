@@ -216,6 +216,7 @@ fn label_cube(cube: &CSG<()>, tube_diameter: f64, rerf_index: u32) -> CSG<()> {
     };
     write_stl(&labeled_cube, &format!("labeled_cube_diameter"));
 
+    eprintln!("label_cube:- tube_diameter: {:?} rerf_index: {:?}", tube_diameter, rerf_index);
     labeled_cube
 }
 
@@ -243,6 +244,7 @@ fn print_polygons(polygons: &[Polygon<()>]) {
 /// * `tube_diameter` - The diameter of the tube to create in the center of the cube, 0.0 for no tube
 /// * `segments` - The number of segments to use when creating the tube, minimum is 3
 fn create_cube(len_side: f64, tube_diameter: f64, segments: u32) -> CSG<()> {
+    eprintln!("create_cube:+ len_side: {:?} tube_diameter: {:?} segments: {:?}", len_side, tube_diameter, segments);
     if segments < 3 {
         panic!("segments must be 3 or greater");
     }
@@ -262,17 +264,20 @@ fn create_cube(len_side: f64, tube_diameter: f64, segments: u32) -> CSG<()> {
     let tube = tube.translate(len_side / 2.0, len_side / 2.0, 0.0);
 
     // Remove the tube material from the cube
-    cube.difference(&tube)
+    cube = cube.difference(&tube);
+
+    eprintln!("create_cube:- len_side: {:?} tube_diameter: {:?} segments: {:?}", len_side, tube_diameter, segments);
+    cube
 }
 
 fn main() {
+    eprintln!("main:+");
     let args = Args::parse();
 
-    let a = -0.0_f64;
-    let b = 0.0_f64;
-    println!("{}", a == b); // prints `true`
+    eprintln!("main: args: {:?}", args);
 
     for cube_idx in 0..args.cube_count {
+        eprintln!("main: tol cube_idx: {:?}", cube_idx);
         let tube_diameter = args.min_tube_diameter + (cube_idx as f64 * args.tube_diameter_step);
         let cube_with_tube = create_cube(args.len_side, tube_diameter, args.segments);
 
@@ -292,5 +297,7 @@ fn main() {
             format!("cube{}.len_side-{:0.3}", cube_idx_str, args.len_side)
         };
         write_stl(&cube_with_tube, &name);
+        eprintln!("main: bol cube_idx: {:?}", cube_idx);
     }
+    eprintln!("main:-");
 }
