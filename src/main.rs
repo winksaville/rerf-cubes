@@ -1,6 +1,6 @@
 use clap::{Parser, value_parser};
 use csgrs::{csg::CSG, polygon::Polygon};
-use nalgebra::{Matrix4, Point3, Rotation3, Vector3};
+use nalgebra::{Point3, Vector3};
 
 // Define the command line arguments
 #[derive(Parser, Debug)]
@@ -50,6 +50,7 @@ struct TextStyle {
     font_height: f64,
     text_extrusion_height: f64,
     text_sink_depth: f64,
+    #[allow(unused)]
     up_normal: Vector3<f64>,
 }
 
@@ -77,71 +78,57 @@ impl TextStyle {
 /// * `text` - The text string to render.
 /// * `position` - The point on the surface where the text will be centered.
 /// * `face_normal` - Normal vector of the surface where the text will appear.
-/// * `font_data` - The font data to use.
-/// * `font_height` - Height of the text from bottom to top of characters (in world units).
-/// * `text_extrusion_height` - Height to extrude text above the surface.
-/// * `text_sink_depth` - Depth to sink the base of the text into the surface.
-/// * `up_normal` - Direction considered 'up' for orienting the text; must be perpendicular to `face_normal`.
+/// * `text_style` - The TextStyle
 fn create_text_on_surface(
     text: &str,
     position: Point3<f64>,
     face_normal: Vector3<f64>,
     text_style: &TextStyle,
 ) -> CSG<()> {
-    eprintln!("create_text_on_surface:+ text {:?} position: {:?} face_normal: {:?}", text, position, face_normal);
-    let csg_text: CSG<()> = CSG::text(text, &text_style.font_data, text_style.font_height, None);
-    let csg_text_bb = csg_text.bounding_box();
-    let csg_text_extents = csg_text_bb.extents();
-    write_stl(&csg_text, &format!("{text}_1_original"));
-
-    // Step 1: Center the text on its local bounding box
-    let center_offset = Vector3::new(
-        -csg_text_extents.x / 2.0,
-        0.0,
-        -csg_text_extents.y / 2.0,
+    eprintln!(
+        "create_text_on_surface:+ text {:?} position: {:?} face_normal: {:?}",
+        text, position, face_normal
     );
-    eprintln!("translate: before center_offset {:?}", center_offset);
-    let csg_text = csg_text.translate(center_offset.x, center_offset.y, center_offset.z);
-    eprintln!("translate: done center_offset {:?}", center_offset);
-    write_stl(&csg_text, &format!("{text}_2_after_translate"));
 
-    // Step 2: Build orientation (Rotate BEFORE Extruding)
-    let z_axis = face_normal.normalize();
-    eprintln!("step 2 z_axis: {:?}", z_axis);
+    // Step 1: Create initial flat text
+    let csg_text: CSG<()> = CSG::text(text, &text_style.font_data, text_style.font_height, None);
+    write_stl(&csg_text, &format!("{}_1_original", text));
 
-    // Rotate safely from initial normal [0,0,1] to face_normal
-    let rotation = Rotation3::rotation_between(
-        &Vector3::new(0.0, 0.0, 1.0),
-        &z_axis,
-    ).unwrap_or_else(Rotation3::identity);
-    eprintln!("rotation: {:?}", rotation);
+    // Step 2: Rotate text to align correctly with face_normal
+    // Initial text faces +Z; we must rotate from +Z to face_normal
+    let rotation = if face_normal == Vector3::new(0.0, -1.0, 0.0) {
+        // Rotate +90° around X to face negative Y
+        (90.0, 0.0, 0.0)
+    } else if face_normal == Vector3::new(0.0, 1.0, 0.0) {
+        (-90.0, 0.0, 0.0)
+    } else if face_normal == Vector3::new(-1.0, 0.0, 0.0) {
+        (0.0, 90.0, 0.0)
+    } else if face_normal == Vector3::new(1.0, 0.0, 0.0) {
+        (0.0, -90.0, 0.0)
+    } else if face_normal == Vector3::new(0.0, 0.0, -1.0) {
+        (180.0, 0.0, 0.0)
+    } else {
+        (0.0, 0.0, 0.0)
+    };
 
-    let rotation_matrix = Matrix4::from(rotation.to_homogeneous());
-    eprintln!("rotation_matrix: {:?}", rotation_matrix);
+    let csg_text = csg_text.rotate(rotation.0, rotation.1, rotation.2);
+    write_stl(&csg_text, &format!("{}_2_after_rotation", text));
 
-    let rotation_matrix = Matrix4::from(rotation.to_homogeneous());
-    eprintln!("rotation_matrix: {:?}", rotation_matrix);
-
-    // Apply rotation before extrusion
-    let csg_text = csg_text.transform(&rotation_matrix);
-    eprintln!("rotation_matrix: done rotation transform {:?}", rotation_matrix);
-    write_stl(&csg_text, &format!("{text}_3_after_rotation"));
-
-    // Step 3: Translate to final position before extrusion
-    eprintln!("translate: before position {:?}", position);
+    // Step 3: Translate text to final position
     let csg_text = csg_text.translate(position.x, position.y, position.z);
-    eprintln!("translate: done position {:?}", position);
-    write_stl(&csg_text, &format!("{text}_4_after_position"));
+    write_stl(&csg_text, &format!("{}_3_after_translate", text));
 
-    // Step 4: Extrude the Text **AFTER Transformations**
-    eprintln!("extrude: before {:?}", text_style.text_extrusion_height);
+    // Step 4: Extrude text
     let text_3d = csg_text.extrude(text_style.text_extrusion_height + text_style.text_sink_depth);
-    eprintln!("extrude: done {:?}", text_style.text_extrusion_height);
-    write_stl(&text_3d, &format!("{text}_5_after_extrude"));
+    write_stl(&text_3d, &format!("{}_4_after_extrude", text));
 
-    eprintln!("create_text_on_surface:- text {:?} position: {:?} face_normal: {:?}", text, position, face_normal);
+    eprintln!(
+        "create_text_on_surface:- text {:?} position: {:?} face_normal: {:?}",
+        text, position, face_normal
+    );
     text_3d
 }
+
 
 
 /// Create a 3D text object centered on a polygon surface.
@@ -151,11 +138,7 @@ fn create_text_on_surface(
 /// * `shape` - The CSG shape containing the polygon.
 /// * `polygon_index` - The index of the polygon on which to place the text.
 /// * `text` - The text string to render.
-/// * `font_data` - The font data to use.
-/// * `font_height` - Height of the text from bottom to top of characters (in world units).
-/// * `text_extrusion_height` - Height to extrude text above the surface.
-/// * `text_sink_depth` - Depth to sink the base of the text into the surface.
-/// * `up_normal` - Direction considered 'up' for orienting the text; must be perpendicular to `face_normal`.
+/// * `text_style` - The TextStyle
 fn create_text_on_polygon(
     shape: &CSG<()>,
     polygon_index: usize,
