@@ -105,13 +105,20 @@ fn create_text_on_surface(
     eprintln!("translate: done center_offset {:?}", center_offset);
     write_stl(&csg_text, &format!("{text}_2_after_translate"));
 
-    // Step 2: Build orientation from normal + up (Rotate BEFORE Extruding)
+    // Step 2: Build orientation (Rotate BEFORE Extruding)
     let z_axis = face_normal.normalize();
     eprintln!("step 2 z_axis: {:?}", z_axis);
 
-    // Use a safe and robust rotation constructor
-    let rotation = Rotation3::face_towards(&z_axis, &text_style.up_normal);
+    // Rotate safely from initial normal [0,0,1] to face_normal
+    let rotation = Rotation3::rotation_between(
+        &Vector3::new(0.0, 0.0, 1.0),
+        &z_axis,
+    ).unwrap_or_else(Rotation3::identity);
     eprintln!("rotation: {:?}", rotation);
+
+    let rotation_matrix = Matrix4::from(rotation.to_homogeneous());
+    eprintln!("rotation_matrix: {:?}", rotation_matrix);
+
     let rotation_matrix = Matrix4::from(rotation.to_homogeneous());
     eprintln!("rotation_matrix: {:?}", rotation_matrix);
 
