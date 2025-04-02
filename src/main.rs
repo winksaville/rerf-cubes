@@ -42,6 +42,13 @@ fn write_stl(obj: &CSG<()>, base_name: &str) {
     std::fs::write(base_name.to_owned() + ".stl", stl).unwrap();
 }
 
+fn font_height_to_scale(font_height_mm: f64) -> f64 {
+    // Convert font height from mm to points
+    let font_height_scale = font_height_mm * 2.120455804199219;
+    eprintln!("font_height_scale: {:?}", font_height_scale);
+
+    font_height_scale
+}
 
 /// Text Style for 3D text
 #[derive(Debug, Clone)]
@@ -82,17 +89,23 @@ impl TextStyle {
 /// * `text_style` - The TextStyle
 fn create_text_on_surface(
     text: &str,
-    position: Point3<f64>,
+    center_position: Point3<f64>,
     face_normal: Vector3<f64>,
     text_style: &TextStyle,
 ) -> CSG<()> {
     eprintln!(
         "create_text_on_surface:+ text {:?} position: {:?} face_normal: {:?} fh: {:?} eh: {:?} sd: {:?}",
-        text, position, face_normal, text_style.font_height, text_style.text_extrusion_height, text_style.text_sink_depth
+        text, center_position, face_normal, text_style.font_height, text_style.text_extrusion_height, text_style.text_sink_depth
     );
 
     // Step 1: Create initial 2D text
-    let csg_text: CSG<()> = CSG::text(text, &text_style.font_data, text_style.font_height, None);
+    let font_height_scale = font_height_to_scale(text_style.font_height);
+    let csg_text: CSG<()> = CSG::text(text, &text_style.font_data, font_height_scale, None);
+    let bb = csg_text.bounding_box();
+    eprintln!("csg_text_bb: before extrusion {:?}", bb);
+    let extents = bb.extents();
+    eprintln!("csg_text_extents: before extrusion {:?}", extents);
+
     write_stl(&csg_text, &format!("{}_1_original", text));
 
     // Step 2: Extrude text
@@ -101,6 +114,12 @@ fn create_text_on_surface(
     // are nops.
     let csg_text = csg_text.extrude(text_style.text_extrusion_height + text_style.text_sink_depth);
     write_stl(&csg_text, &format!("{}_2_after_extrude", text));
+
+    let bb = csg_text.bounding_box();
+    eprintln!("csg_text_bb: after extrusion {:?}", bb);
+    let extents = bb.extents();
+    eprintln!("csg_text_extents: after extrusion {:?}", extents);
+
 
     // Step 3: Rotate text to align correctly with face_normal
     // Initial text faces +Z; we must rotate from +Z to face_normal
@@ -123,13 +142,34 @@ fn create_text_on_surface(
     let csg_text = csg_text.rotate(rotation.0, rotation.1, rotation.2);
     write_stl(&csg_text, &format!("{}_3_after_rotation", text));
 
+    // Step 4: Text is printed from lower left corner
+    // so we need to calculate the offset to center it on the surface
+    // from the lower left corner of the text.
+    let csg_text_bb = csg_text.bounding_box();
+    eprintln!("csg_text_bb: {:?}", csg_text_bb);
+    let csg_text_extents = csg_text_bb.extents();
+    eprintln!("csg_text_extents: {:?}", csg_text_extents);
+    eprintln!("font_height: {:?} / csg_text_extents.z = {:?}", text_style.font_height, csg_text_extents.z);
+    let text_offset = Vector3::new(
+        0.0, //csg_text_extents.x / 2.0,
+        0.0, //-text_style.text_sink_depth,
+        text_style.font_height / 2.0,
+    );
+    eprintln!("text_offset: {:?}", text_offset);
+    let final_text_position = center_position - text_offset;
+    eprintln!("final_text_position: {:?}", final_text_position);
+
     // Step 4: Translate text to final position
-    let csg_text = csg_text.translate(position.x, position.y, position.z);
+    let csg_text = csg_text.translate(
+        final_text_position.x,
+        final_text_position.y,
+        final_text_position.z,
+    );
     write_stl(&csg_text, &format!("{}_4_after_translate", text));
 
     eprintln!(
         "create_text_on_surface:- text {:?} position: {:?} face_normal: {:?}",
-        text, position, face_normal
+        text, center_position, face_normal
     );
     csg_text
 }
@@ -164,28 +204,29 @@ fn create_text_on_polygon(
     }
     center /= polygon.vertices.len() as f64;
     eprintln!("center: {:?}", center);
-    let position = Point3::from(center);
-    eprintln!("position: {:?}", position);
+    let center_position = Point3::from(center);
+    eprintln!("position: {:?}", center_position);
 
-    let obj = Some(create_text_on_surface(
+    let text_3d = create_text_on_surface(
         text,
-        position,
+        center_position,
         face_normal,
         text_style,
-    ));
+    );
     eprintln!("create_text_on_polygon:- text {:?} polygon_index: {:?}", text, polygon_index);
 
-    obj
+    Some(text_3d)
 }
 
 fn label_cube(cube: &CSG<()>, tube_diameter: f64, rerf_index: u32) -> CSG<()> {
     eprintln!("label_cube:+ tube_diameter: {:?} rerf_index: {:?}", tube_diameter, rerf_index);
     let font_data = include_bytes!("../fonts/courier-prime-sans/courier-prime-sans.ttf").to_vec();
-    let font_height = 4.5;
+    let font_height = 1.0 * 2.397;
     let text_extrusion_height = 0.2;
-    let text_sink_depth = text_extrusion_height * 0.10;
+    let text_sink_depth = text_extrusion_height * 0.40;
     let text_up_direction = Vector3::new(0.0, 0.0, 1.0);
 
+    // Create the text style
     let text_style = TextStyle::new(
         font_data,
         font_height,
@@ -194,19 +235,39 @@ fn label_cube(cube: &CSG<()>, tube_diameter: f64, rerf_index: u32) -> CSG<()> {
         text_up_direction,
     );
 
+    // Create the text for tube diameter
     let tube_diameter_text = format!("{:03}", (tube_diameter * 1000.0) as usize);
     let tube_diameter_polygon_index = 2;
-
-    let labeled_cube = if let Some(text_3d) = create_text_on_polygon(
+    let tube_diameter_text_3d = if let Some(text_3d) = create_text_on_polygon(
         cube,
         tube_diameter_polygon_index,
         &tube_diameter_text,
         &text_style,
     ) {
-        cube.union(&text_3d)
+        text_3d
     } else {
-        panic!("Failed to create tube_diameter_text on polygon")
+        panic!("tube_diameter_polygon_index: {:?} is out of bounds", tube_diameter_polygon_index);
     };
+
+    //// Create the text for rerf_index
+    //let rerf_index_text = format!("{:03}", rerf_index as usize);
+    //let rerf_index_polygon_index = 3;
+    //let rerf_index_text_3d = if let Some(text_3d) = create_text_on_polygon(
+    //    cube,
+    //    rerf_index_polygon_index,
+    //    &rerf_index_text,
+    //    &text_style,
+    //) {
+    //    text_3d
+    //} else {
+    //    panic!("rerf_index_polygon_index: {:?} is out of bounds", rerf_index_polygon_index);
+    //};
+
+    // Label the cube with the both text shapes
+    let labeled_cube = cube
+        .union(&tube_diameter_text_3d)
+        //.union(&rerf_index_text_3d);
+        ;
 
     eprintln!("label_cube:- tube_diameter: {:?} rerf_index: {:?}", tube_diameter, rerf_index);
     labeled_cube
@@ -242,13 +303,13 @@ fn create_cube(len_side: f64, tube_diameter: f64, segments: u32) -> CSG<()> {
     }
 
     // Create the cube
-    let mut cube = CSG::cube(len_side, len_side, len_side, None);
+    let cube = CSG::cube(len_side, len_side, len_side, None);
     print_polygons(&cube.polygons);
 
     // We must label the cube before we create the tube as the tube will get more polygons
-    // which are irrelevant for the cube label.
-    cube = label_cube(&cube, tube_diameter, 1);
-    write_stl(&cube, "cube_labeled_no_tube");
+    // which are irrelevant for the cube label and causes the polygon index to be incorrect.
+    let cube_labeled = label_cube(&cube, tube_diameter, 1);
+    write_stl(&cube_labeled, "cube_labeled_no_tube");
 
     // Create the tube and translate it to the center of the cube
     let tube_radius = tube_diameter / 2.0;
@@ -256,10 +317,10 @@ fn create_cube(len_side: f64, tube_diameter: f64, segments: u32) -> CSG<()> {
     let tube = tube.translate(len_side / 2.0, len_side / 2.0, 0.0);
 
     // Remove the tube material from the cube
-    cube = cube.difference(&tube);
+    let cube_labled_tubed = cube_labeled.difference(&tube);
 
     eprintln!("create_cube:- len_side: {:?} tube_diameter: {:?} segments: {:?}", len_side, tube_diameter, segments);
-    cube
+    cube_labled_tubed
 }
 
 fn main() {
