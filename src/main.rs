@@ -63,6 +63,7 @@ fn create_text(text: &str, font_data: &[u8], len_side: f64) -> CSG<()> {
     )
 }
 
+#[allow(dead_code)]
 fn print_polygons(polygons: &[Polygon<()>]) {
     //println!("polygon: {:?}", polygon);
     for (idx, polygon) in (polygons.iter()).enumerate() {
@@ -74,7 +75,7 @@ fn print_polygons(polygons: &[Polygon<()>]) {
             println!("     pos: {:?}", vertex.pos);
             println!("     normal: {:?}", vertex.normal);
         }
-        println!(" plane: {:?}", polygon.plane);
+        println!(" plane: {:?}", polygon.plane());
     }
 }
 
@@ -125,16 +126,13 @@ fn create_cube(len_side: f64, tube_diameter: f64, segments: u32) -> CSG<()> {
 fn main() {
     let args = Args::parse();
 
-    let a = -0.0_f64;
-    let b = 0.0_f64;
-    println!("{}", a == b); // prints `true`
-
     for cube_idx in 0..args.cube_count {
         let tube_diameter = args.min_tube_diameter + (cube_idx as f64 * args.tube_diameter_step);
         let cube_with_tube = create_cube(args.len_side, tube_diameter, args.segments);
 
+        println!("The cube_idx {cube_idx} is_manifold()={}", cube_with_tube.is_manifold());
         //if !cube_with_tube.is_manifold() {
-        //    println!("The cube_idx {cube_idx} is not a manifold");
+        //    panic!("main: the cube {cube_idx} is not manifold");
         //}
 
         let cube_idx_str = if args.cube_count > 1 {
