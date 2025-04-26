@@ -11,7 +11,7 @@ struct Args {
         short,
         long,
         default_value = "1",
-        help = "The number of cubes to create"
+        help = "The number of cubes to create, default=1"
     )]
     cube_count: usize,
 
@@ -33,6 +33,15 @@ struct Args {
 
     #[arg(short, long, default_value = "50", value_parser = value_parser!(u32).range(3..), help = "The number of segments to use when creating the tube, minimum is 3")]
     segments: u32,
+
+    #[arg(
+        short,
+        long,
+        default_value = "false",
+        help = "Enable to print polygons"
+    )]
+    print_polygons: bool,
+
 }
 
 fn create_text(text: &str, font_data: &[u8], len_side: f64) -> CSG<()> {
@@ -63,7 +72,6 @@ fn create_text(text: &str, font_data: &[u8], len_side: f64) -> CSG<()> {
     )
 }
 
-#[allow(dead_code)]
 fn print_polygons(polygons: &[Polygon<()>]) {
     //println!("polygon: {:?}", polygon);
     for (idx, polygon) in (polygons.iter()).enumerate() {
@@ -87,7 +95,7 @@ fn print_polygons(polygons: &[Polygon<()>]) {
 /// * `len_side` - The length of the sides of the cube
 /// * `tube_diameter` - The diameter of the tube to create in the center of the cube, 0.0 for no tube
 /// * `segments` - The number of segments to use when creating the tube, minimum is 3
-fn create_cube(len_side: f64, tube_diameter: f64, segments: u32) -> CSG<()> {
+fn create_cube(len_side: f64, tube_diameter: f64, segments: u32, print_polygons_flag: bool) -> CSG<()> {
     if segments < 3 {
         panic!("segments must be 3 or greater");
     }
@@ -100,7 +108,12 @@ fn create_cube(len_side: f64, tube_diameter: f64, segments: u32) -> CSG<()> {
     //println!("to_polygons: {:?}", polygons);
     //let polygons = &cube.polygons;
     //println!("polygons: {:?}", polygons);
-    print_polygons(&cube.polygons);
+
+    if  print_polygons_flag {
+        // Print the polygons of the cube
+        println!("cube polygons:");
+        print_polygons(&cube.polygons);
+    }
 
     // Create the tube and translate it to the center of the cube
     if tube_diameter > 0.0 {
@@ -128,7 +141,7 @@ fn main() {
 
     for cube_idx in 0..args.cube_count {
         let tube_diameter = args.min_tube_diameter + (cube_idx as f64 * args.tube_diameter_step);
-        let cube_with_tube = create_cube(args.len_side, tube_diameter, args.segments);
+        let cube_with_tube = create_cube(args.len_side, tube_diameter, args.segments, args.print_polygons);
 
         println!("The cube_idx {cube_idx} is_manifold()={}", cube_with_tube.is_manifold());
         //if !cube_with_tube.is_manifold() {
