@@ -4,6 +4,7 @@ use csgrs;
 use csgrs::traits::CSG;
 
 type Mesh = csgrs::mesh::Mesh<()>;
+type Sketch = csgrs::sketch::Sketch<()>;
 
 // Define the command line arguments
 #[derive(Parser, Debug)]
@@ -48,33 +49,33 @@ struct Args {
 
 }
 
-//fn create_text(text: &str, font_data: &[u8], len_side: f64) -> CSG<()> {
-//    let csg_text: CSG<()> = CSG::text(text, font_data, 4.5, None);
-//    let csg_text_bb = csg_text.bounding_box();
-//    //println!("cgs_text_bb: {:?}", csg_text_bb);
-//    let csg_text_extents = csg_text_bb.extents();
-//    //println!("cgs_text_extents: {:?}", csg_text_extents);
-//
-//    let text_extrude = 0.1;
-//    let text_3d = csg_text.extrude(text_extrude);
-//
-//    // Rotate the text to be on the xz plane
-//    let text_3d = text_3d.rotate(90.0, 0.0, 0.0);
-//
-//    // Position the text in the center of face on xz plane
-//    // and sink 10% of the extrude depth into the cube to
-//    // be sure there are no holes in the print caused by
-//    // the text not being exactly on the surface.
-//    let half_len_side = len_side / 2.0;
-//    let half_extents_y = csg_text_extents.y / 2.0;
-//    let half_extents_x = csg_text_extents.x / 2.0;
-//    let text_sink_depth = text_extrude * 0.10;
-//    text_3d.translate(
-//        half_len_side - half_extents_x,
-//        -text_sink_depth,
-//        half_len_side - half_extents_y,
-//    )
-//}
+fn create_text(text: &str, font_data: &[u8], len_side: f64) -> Mesh {
+    let csg_text = Sketch::text(text, font_data, 4.5, None);
+    let csg_text_bb = csg_text.bounding_box();
+    //println!("cgs_text_bb: {:?}", csg_text_bb);
+    let csg_text_extents = csg_text_bb.extents();
+    //println!("cgs_text_extents: {:?}", csg_text_extents);
+
+    let text_extrude = 0.1;
+    let text_3d = csg_text.extrude(text_extrude);
+
+    // Rotate the text to be on the xz plane
+    let text_3d = text_3d.rotate(90.0, 0.0, 0.0);
+
+    // Position the text in the center of face on xz plane
+    // and sink 10% of the extrude depth into the cube to
+    // be sure there are no holes in the print caused by
+    // the text not being exactly on the surface.
+    let half_len_side = len_side / 2.0;
+    let half_extents_y = csg_text_extents.y / 2.0;
+    let half_extents_x = csg_text_extents.x / 2.0;
+    let text_sink_depth = text_extrude * 0.10;
+    text_3d.translate(
+        half_len_side - half_extents_x,
+        -text_sink_depth,
+        half_len_side - half_extents_y,
+    )
+}
 
 //fn print_polygons(polygons: &[Polygon<()>]) {
 //    //println!("polygon: {:?}", polygon);
@@ -129,12 +130,12 @@ fn create_cube(len_side: f64, tube_diameter: f64, segments: u32, _print_polygons
         cube = cube.difference(&tube);
 
         // Create the text for the tube diameter
-        //let font_data = include_bytes!("../fonts/courier-prime-sans/courier-prime-sans.ttf");
-        //let text = format!("{:3}", (tube_diameter * 1000.0) as usize);
-        //let text_3d = create_text(&text, font_data, len_side);
+        let font_data = include_bytes!("../fonts/courier-prime-sans/courier-prime-sans.ttf");
+        let text = format!("{:3}", (tube_diameter * 1000.0) as usize);
+        let text_3d = create_text(&text, font_data, len_side);
 
         // Union the cube with the text
-        //cube = cube.union(&text_3d);
+        cube = cube.union(&text_3d);
     }
 
     // Return the finished cube
