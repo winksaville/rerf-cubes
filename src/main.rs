@@ -1,10 +1,14 @@
 use clap::{Parser, value_parser};
 //use csgrs::{csg::CSG, polygon::Polygon};
-use csgrs;
+use csgrs::mesh::{Mesh, polygon::Polygon};
+use csgrs::sketch::Sketch;
 use csgrs::traits::CSG;
 
-type Mesh = csgrs::mesh::Mesh<()>;
-type Sketch = csgrs::sketch::Sketch<()>;
+// TODO: Experiment with gyrod, schwarz_p and schwarrz_d in csgrs
+// https://duckduckgo.com/?q=3d+print+gyroid+infills
+// https://3dsolved.com/3d-printing-with-gyroid-infills-all-you-need-to-know/
+// https://duckduckgo.com/?q=schwarz_p+infill
+// https://xyzdims.com/tag/schwarz-p/
 
 // Define the command line arguments
 #[derive(Parser, Debug)]
@@ -49,7 +53,7 @@ struct Args {
 
 }
 
-fn create_text(text: &str, font_data: &[u8], len_side: f64) -> Mesh {
+fn create_text(text: &str, font_data: &[u8], len_side: f64) -> Mesh<()> {
     let csg_text = Sketch::text(text, font_data, 4.5, None);
     let csg_text_bb = csg_text.bounding_box();
     //println!("cgs_text_bb: {:?}", csg_text_bb);
@@ -77,20 +81,15 @@ fn create_text(text: &str, font_data: &[u8], len_side: f64) -> Mesh {
     )
 }
 
-//fn print_polygons(polygons: &[Polygon<()>]) {
-//    //println!("polygon: {:?}", polygon);
-//    for (idx, polygon) in (polygons.iter()).enumerate() {
-//        println!("polygon {idx}:");
-//        println!(" vertices count: {}", polygon.vertices.len());
-//        //println!(" vertices: {:?}", polygon.vertices);
-//        for (idx, vertex) in (polygon.vertices.iter()).enumerate() {
-//            println!("  vertex {idx}:");
-//            println!("     pos: {:?}", vertex.pos);
-//            println!("     normal: {:?}", vertex.normal);
-//        }
-//        //println!(" plane: {:?}", polygon.plane());
-//    }
-//}
+fn print_polygons(polygons: &[Polygon<()>], indent_level: usize) {
+    for (idx, polygon) in (polygons.iter()).enumerate() {
+        println!("{:indent$}polygon {idx}:", " ", indent=indent_level);
+        println!("{:indent$}  vertices {}: {:?}", " ", polygon.vertices.len(), polygon.vertices, indent=indent_level);
+        println!("{:indent$}  plane: {:?}", " ", polygon.plane, indent=indent_level);
+        println!("{:indent$}  bounding_box: {:?}", " ", polygon.bounding_box(), indent=indent_level);
+
+    }
+}
 
 /// Create a cube with an optional tube in the center.
 /// The tube is created by removing the material defined by the tube from the cube.
@@ -100,7 +99,7 @@ fn create_text(text: &str, font_data: &[u8], len_side: f64) -> Mesh {
 /// * `len_side` - The length of the sides of the cube
 /// * `tube_diameter` - The diameter of the tube to create in the center of the cube, 0.0 for no tube
 /// * `segments` - The number of segments to use when creating the tube, minimum is 3
-fn create_cube(len_side: f64, tube_diameter: f64, segments: u32, _print_polygons_flag: bool) -> Mesh {
+fn create_cube(len_side: f64, tube_diameter: f64, segments: u32, print_polygons_flag: bool) -> Mesh<()> {
     if segments < 3 {
         panic!("segments must be 3 or greater");
     }
@@ -108,18 +107,13 @@ fn create_cube(len_side: f64, tube_diameter: f64, segments: u32, _print_polygons
 
     // Create the cube
     let mut cube = Mesh::cube(len_side, None);
-    //let geometry = &cube.geometry;
-    //println!("geometry: {:?}", geometry);
-    //let polygons = &cube.to_polygons();
-    //println!("to_polygons: {:?}", polygons);
-    //let polygons = &cube.polygons;
-    //println!("polygons: {:?}", polygons);
-
-    //if  print_polygons_flag {
-    //    // Print the polygons of the cube
-    //    println!("cube polygons:");
-    //    print_polygons(&cube.polygons);
-    //}
+    let polygons = &cube.polygons;
+    println!("cube polygons count: {}", polygons.len());
+    if  print_polygons_flag {
+        // Print the polygons of the cube
+        println!("cube polygons:");
+        print_polygons(&cube.polygons, 2);
+    }
 
     // Create the tube and translate it to the center of the cube
     if tube_diameter > 0.0 {
@@ -170,7 +164,9 @@ fn main() {
         } else {
             format!("cube{}.len_side-{:0.3}", cube_idx_str, args.len_side)
         };
+        println!("Writing STL file: {name}.stl");
         let stl = cube_with_tube.to_stl_ascii(&name);
         std::fs::write(name.to_owned() + ".stl", stl).unwrap();
+        println!("Wrote STL file: {name}.stl");
     }
 }
