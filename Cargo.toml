@@ -14,4 +14,4 @@ default-features = false
 path = "../csgrs"
 # ATM f32 doesn't compile
 #features = ["f32", "stl-io", "dxf-io", "truetype-text", "hershey-text", "chull-io", "image-io", "metaballs", "hashmap", "sdf", "offset", "earcut"]
-features = ["f64", "stl-io", "dxf-io", "truetype-text", "hershey-text", "chull-io", "image-io", "metaballs", "hashmap", "sdf", "offset", "earcut"]
+features = ["f64", "stl-io", "dxf-io", "truetype-text", "hershey-text", "chull-io", "image-io", "metaballs", "sdf", "offset", "earcut"] #, "hashmap"

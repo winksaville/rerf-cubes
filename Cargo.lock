@@ -153,6 +153,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "base64"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+
+[[package]]
 name = "bit-vec"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -229,7 +235,7 @@ version = "0.15.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d067ad48b8650848b989a59a86c6c36a995d02d2bf778d45c3c5d57bc2718f02"
 dependencies = [
- "smallvec 1.14.0",
+ "smallvec",
  "target-lexicon",
 ]
 
@@ -410,11 +416,12 @@ checksum = "43da5946c66ffcc7745f48db692ffbb10a83bfe0afd96235c5c2a4fb23994929"
 
 [[package]]
 name = "csgrs"
-version = "0.17.0"
+version = "0.20.1"
 dependencies = [
  "chull",
  "contour_tracing",
  "core2",
+ "doc-image-embed",
  "dxf",
  "either",
  "fast-surface-nets",
@@ -424,14 +431,27 @@ dependencies = [
  "hershey",
  "image",
  "nalgebra",
+ "nom",
  "parry3d-f64",
  "rapier3d-f64",
  "robust",
- "small_str",
  "stl_io",
+ "svg",
  "thiserror 2.0.12",
  "ttf-parser",
  "ttf-parser-utils",
+]
+
+[[package]]
+name = "doc-image-embed"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b1c7e5bbb92b417588a5e733e095416c27c06eedc051065cc955a0a8c8389d9"
+dependencies = [
+ "base64",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -517,7 +537,7 @@ dependencies = [
  "lebe",
  "miniz_oxide",
  "rayon-core",
- "smallvec 1.14.0",
+ "smallvec",
  "zune-inflate",
 ]
 
@@ -1458,7 +1478,7 @@ checksum = "421400d13ccfd26dfa5858199c30a5d76f9c54e0dba7575273025b43c5175dbb"
 dependencies = [
  "heapless",
  "num-traits 0.2.19",
- "smallvec 1.14.0",
+ "smallvec",
 ]
 
 [[package]]
@@ -1555,26 +1575,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "small_str"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7630599c133ab7e0f5e3eeabdac3bd35091211aec6a9f962150b3f558ca4444"
-dependencies = [
- "serde",
- "smallvec 2.0.0-alpha.11",
-]
-
-[[package]]
 name = "smallvec"
 version = "1.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fcf8323ef1faaee30a44a340193b1ac6814fd9b7b4e88e9d4519a3e4abe1cfd"
-
-[[package]]
-name = "smallvec"
-version = "2.0.0-alpha.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87b96efa4bd6bdd2ff0c6615cc36fc4970cbae63cfd46ddff5cee35a1b4df570"
 
 [[package]]
 name = "spade"
@@ -1585,7 +1589,7 @@ dependencies = [
  "hashbrown",
  "num-traits 0.2.19",
  "robust",
- "smallvec 1.14.0",
+ "smallvec",
 ]
 
 [[package]]
@@ -1615,6 +1619,12 @@ name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
+
+[[package]]
+name = "svg"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94afda9cd163c04f6bee8b4bf2501c91548deae308373c436f36aeff3cf3c4a3"
 
 [[package]]
 name = "syn"
