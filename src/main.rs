@@ -148,9 +148,10 @@ fn main() {
         let tube_diameter = args.min_tube_diameter + (cube_idx as f64 * args.tube_diameter_step);
         let cube_with_tube = create_cube(args.len_side, tube_diameter, args.segments, args.print_polygons);
 
-        println!("The cube_idx {cube_idx} is_manifold()={}", cube_with_tube.is_manifold());
-        //if !cube_with_tube.is_manifold() {
-        //    panic!("main: the cube {cube_idx} is not manifold");
+        let is_manifold = cube_with_tube.is_manifold();
+        println!("The cube_idx {cube_idx} is_manifold()={is_manifold} currently false as is_manifold() is not yet working in csgrs v0.20.1");
+        //if !is_manifold {
+        //   panic!("main: the cube {cube_idx} is not manifold");
         //}
 
         let cube_idx_str = if args.cube_count > 1 {
