@@ -1,6 +1,7 @@
 use clap::{Parser, value_parser};
 //use csgrs::{csg::CSG, polygon::Polygon};
 use csgrs::mesh::{Mesh, polygon::Polygon};
+use csgrs::float_types::Real;
 use csgrs::sketch::Sketch;
 use csgrs::traits::CSG;
 
@@ -51,6 +52,46 @@ struct Args {
     )]
     print_polygons: bool,
 
+    #[arg(
+        short,
+        long,
+        default_value = "0",
+        help = "Resolution for gyroid infill the cube, 0 for no infill"
+    )]
+    resolution: usize, // resolution what are the units?
+
+    /// The period for gyroid infill, must be between 0.0 and 2.0
+    #[arg(
+        short='d',
+        long,
+        default_value = "1.0",
+        value_parser = |s: &str| {
+            let val: Real = s.parse().map_err(|_| String::from("Must be a number"))?;
+            if (0.0..=2.0).contains(&val) {
+                Ok(val)
+            } else {
+                Err(String::from("Value must be between 0.0 and 2.0"))
+            }
+        }
+    )]
+    period: Real,
+
+    #[arg(
+        short,
+        long,
+        default_value = "0.0",
+        value_parser = |s: &str| {
+            let val: Real = s.parse().map_err(|_| String::from("Must be a number"))?;
+            // I'm guessing the iso_value must be between 0.0 and 1.0,
+            // ATM the tpms_from_sdf function says typical is 0.0
+            if (0.0..=1.0).contains(&val) {
+                Ok(val)
+            } else {
+                Err(String::from("Value must be between 0.0 and 1.0"))
+            }
+        }
+    )]
+    iso_value: Real, // The iso value for the infill
 }
 
 fn create_text(text: &str, font_data: &[u8], len_side: f64) -> Mesh<()> {
@@ -95,11 +136,13 @@ fn print_polygons(polygons: &[Polygon<()>], indent_level: usize) {
 /// The tube is created by removing the material defined by the tube from the cube.
 ///
 /// # Arguments
+/// # `args` - The command line arguments
 /// * `idx` - The index of the cube
 /// * `len_side` - The length of the sides of the cube
 /// * `tube_diameter` - The diameter of the tube to create in the center of the cube, 0.0 for no tube
 /// * `segments` - The number of segments to use when creating the tube, minimum is 3
-fn create_cube(len_side: f64, tube_diameter: f64, segments: u32, print_polygons_flag: bool) -> Mesh<()> {
+/// * `print_polygons_flag` - If true, print the polygons of the cube
+fn create_cube(args: &Args, len_side: f64, tube_diameter: f64, segments: u32, print_polygons_flag: bool) -> Mesh<()> {
     if segments < 3 {
         panic!("segments must be 3 or greater");
     }
@@ -132,6 +175,16 @@ fn create_cube(len_side: f64, tube_diameter: f64, segments: u32, print_polygons_
         cube = cube.union(&text_3d);
     }
 
+    if args.resolution > 0 {
+        // Apply infill to the cube
+        let resolution = args.resolution; // resolution what are the units?
+        let period = args.period; // The period for gyroid infill
+        let iso_value = args.iso_value; // The iso value for the infill, typically 0.0
+        println!("Applying gyroid infill with resolution: {resolution} period: {period} iso_value: {iso_value}");
+        cube = cube.gyroid(resolution, period, iso_value, None);
+        println!("Applied gyroid infill");
+    }
+
     // Return the finished cube
     cube
 }
@@ -141,7 +194,7 @@ fn main() {
 
     for cube_idx in 0..args.cube_count {
         let tube_diameter = args.min_tube_diameter + (cube_idx as f64 * args.tube_diameter_step);
-        let cube_with_tube = create_cube(args.len_side, tube_diameter, args.segments, args.print_polygons);
+        let cube_with_tube = create_cube(&args, args.len_side, tube_diameter, args.segments, args.print_polygons);
 
         let is_manifold = cube_with_tube.is_manifold();
         println!("The cube_idx {cube_idx} is_manifold()={is_manifold} currently false as is_manifold() is not yet working in csgrs v0.20.1");
@@ -156,7 +209,7 @@ fn main() {
         };
 
         // Write the result as an ASCII STL:
-        let name = if tube_diameter > 0.0 {
+        let mut name = if tube_diameter > 0.0 {
             format!(
                 "cube{}.len_side-{:0.3}_tube_diameter-{:0.3}_segments-{}",
                 cube_idx_str, args.len_side, tube_diameter, args.segments
@@ -164,6 +217,14 @@ fn main() {
         } else {
             format!("cube{}.len_side-{:0.3}", cube_idx_str, args.len_side)
         };
+
+        let infill_name = if args.resolution > 0 {
+            format!("_resolution-{}-period-{:0.3}-iso_value-{:0.3}", args.resolution, args.period, args.iso_value)
+        } else {
+            "".to_string()
+        };
+        name += &infill_name;
+
         println!("Writing STL file: {name}.stl");
         let stl = cube_with_tube.to_stl_ascii(&name);
         std::fs::write(name.to_owned() + ".stl", stl).unwrap();
