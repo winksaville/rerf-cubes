@@ -1,4 +1,5 @@
 /target
 *.stl
 *.lyt
+*.png
 *autosave
